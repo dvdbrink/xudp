@@ -1,0 +1,54 @@
+apply plugin: 'java'
+apply plugin: 'maven-publish'
+
+group = 'com.danielvandenbrink.xudp'
+version = '0.1.0'
+
+repositories {
+    mavenCentral()
+}
+
+sourceSets {
+    api
+    impl
+}
+
+task apiJar(type: Jar) {
+    from sourceSets.api.output
+}
+
+task implJar(type: Jar) {
+    from sourceSets.impl.output
+}
+
+dependencies {
+    implCompile group: 'org.slf4j', name: 'slf4j-api', version: '1.7.12'
+    implCompile sourceSets.api.output
+
+    testCompile group: 'junit', name: 'junit', version: '4.12'
+    testCompile sourceSets.api.output
+    testCompile sourceSets.impl.output
+
+    runtime configurations.apiRuntime
+    runtime configurations.implRuntime
+}
+
+jar {
+    from sourceSets.api.output
+    from sourceSets.impl.output
+}
+
+publishing {
+    publications {
+        mavenApi(MavenPublication) {
+            groupId group
+            artifactId 'xudp-api'
+            artifact apiJar
+        }
+        mavenImpl(MavenPublication) {
+            groupId group
+            artifactId 'xudp-impl'
+            artifact implJar
+        }
+    }
+}
