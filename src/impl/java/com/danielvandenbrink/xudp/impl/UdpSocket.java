@@ -16,6 +16,12 @@ import java.util.List;
 import java.util.Queue;
 
 abstract class UdpSocket<T extends Packet> implements Socket<T> {
+    enum SocketState {
+        Uninitialized,
+        Bound,
+        Connected
+    };
+
     public static final int PACKET_SIZE = 2048;
     public static final boolean CONFIGURE_BLOCKING = false;
     public static final boolean REUSE_ADDRESS = true;
@@ -37,6 +43,9 @@ abstract class UdpSocket<T extends Packet> implements Socket<T> {
     private DatagramChannel datagramChannel;
     private SelectionKey selectionKey;
 
+    private SocketState socketState;
+    private SocketAddress connectedFrom;
+
     public UdpSocket(PacketEncoder<T> encoder, PacketDecoder<T> decoder, PacketHandler<T> handler,
                      SelectorFactory selectorFactory, DatagramChannelFactory datagramChannelFactory,
                      PacketFactory<T> packetFactory, PacketEventFactory packetEventFactory) {
@@ -47,6 +56,8 @@ abstract class UdpSocket<T extends Packet> implements Socket<T> {
         this.datagramChannelFactory = datagramChannelFactory;
         this.packetFactory = packetFactory;
         this.packetEventFactory = packetEventFactory;
+
+        socketState = SocketState.Uninitialized;
     }
 
     @Override
@@ -67,6 +78,7 @@ abstract class UdpSocket<T extends Packet> implements Socket<T> {
         try {
             datagramChannel.socket().setReuseAddress(REUSE_ADDRESS);
             datagramChannel.bind(address);
+            socketState = SocketState.Bound;
         } catch (IOException e) {
             throw new UdpSocketException("Failed to connect on socket", e);
         }
@@ -76,6 +88,8 @@ abstract class UdpSocket<T extends Packet> implements Socket<T> {
     public final void connect(SocketAddress address) {
         try {
             datagramChannel.connect(address);
+            socketState = SocketState.Connected;
+            connectedFrom = address;
         } catch (IOException e) {
             throw new UdpSocketException("Failed to connect on socket", e);
         }
@@ -141,7 +155,14 @@ abstract class UdpSocket<T extends Packet> implements Socket<T> {
             final DatagramChannel channel = (DatagramChannel) key.channel();
 
             byteBuffer.clear();
-            final SocketAddress from = channel.receive(byteBuffer);
+
+            SocketAddress from = null;
+            if (socketState == SocketState.Bound) {
+                from = channel.receive(byteBuffer);
+            } else if (socketState == SocketState.Connected && channel.isConnected()) {
+                channel.read(byteBuffer);
+                from = connectedFrom;
+            }
             byteBuffer.flip();
 
             if (from == null) {
@@ -206,7 +227,12 @@ abstract class UdpSocket<T extends Packet> implements Socket<T> {
     private void handleWriteBytes(SelectionKey key, SocketAddress to) {
         try {
             final DatagramChannel channel = (DatagramChannel) key.channel();
-            final int bytes = channel.send(byteBuffer, to);
+            int bytes = 0;
+            if (socketState == SocketState.Bound) {
+                bytes = channel.send(byteBuffer, to);
+            } else if (socketState == SocketState.Connected && channel.isConnected()) {
+                bytes = channel.write(byteBuffer);
+            }
             log.trace("Wrote {} bytes to {}", bytes, to);
         } catch (IOException e) {
             log.warn("Error sending bytes over channel", e);
