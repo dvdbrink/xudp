@@ -6,7 +6,7 @@ import com.danielvandenbrink.xudp.PacketEventFactory;
 
 import java.net.SocketAddress;
 
-class UdpPacketEventFactory implements PacketEventFactory {
+public class UdpPacketEventFactory implements PacketEventFactory {
     @Override
     public PacketEvent create(Packet packet, SocketAddress address) {
         return new UdpPacketEvent(packet, address);

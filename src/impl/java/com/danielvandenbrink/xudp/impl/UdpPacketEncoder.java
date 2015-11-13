@@ -5,7 +5,7 @@ import com.danielvandenbrink.xudp.Protocol;
 
 import java.nio.ByteBuffer;
 
-class UdpPacketEncoder implements PacketEncoder<UdpPacket> {
+public class UdpPacketEncoder implements PacketEncoder<UdpPacket> {
     @Override
     public void encode(UdpPacket packet, ByteBuffer buffer) {
         buffer.putInt(packet.protocol().id());

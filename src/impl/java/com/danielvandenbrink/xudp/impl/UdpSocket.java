@@ -10,12 +10,9 @@ import java.nio.ByteBuffer;
 import java.nio.channels.DatagramChannel;
 import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
-import java.util.ArrayDeque;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Queue;
+import java.util.*;
 
-abstract class UdpSocket<T extends Packet> implements Socket<T> {
+public abstract class UdpSocket<T extends Packet> implements Socket<T> {
     enum SocketState {
         Uninitialized,
         Bound,
@@ -29,6 +26,7 @@ abstract class UdpSocket<T extends Packet> implements Socket<T> {
     private final Logger log = LoggerFactory.getLogger(getClass());
     private final ByteBuffer byteBuffer = ByteBuffer.allocate(PACKET_SIZE);
     private final Queue<OutgoingPacket<T>> out = new ArrayDeque<>();
+    private final List<PacketEventHandler> packetHandlers = new ArrayList<>();
 
     private final PacketEncoder<T> encoder;
     private final PacketDecoder<T> decoder;
@@ -96,11 +94,20 @@ abstract class UdpSocket<T extends Packet> implements Socket<T> {
     }
 
     @Override
+    public final void send(Protocol protocol, byte[] data) {
+        if (socketState == SocketState.Connected) {
+            send(protocol, data, connectedFrom);
+        } else {
+            throw new UdpSocketException("Unable to send data without recipient. Socket is not in a connected state, but a bound state.");
+        }
+    }
+
+    @Override
     public final void send(Protocol protocol, byte[] data, SocketAddress to) {
         final T packet = packetFactory.create(protocol, data);
         final OutgoingPacket<T> outgoingPacket = new OutgoingPacket<>(packet, to);
         if (out.offer(outgoingPacket)) {
-            selectionKey.interestOps(SelectionKey.OP_WRITE);
+            selectionKey.interestOps(SelectionKey.OP_READ | SelectionKey.OP_WRITE);
         } else {
             throw new UdpSocketException(String.format("Failed to queue message for %s", to));
         }
@@ -148,7 +155,11 @@ abstract class UdpSocket<T extends Packet> implements Socket<T> {
         }
     }
 
-    public abstract void handlePacketEvent(PacketEvent packetEvent);
+    public void handlePacketEvent(PacketEvent packetEvent) {
+        for (final PacketEventHandler handler : packetHandlers) {
+            handler.handle(packetEvent);
+        }
+    }
 
     private void handleRead(SelectionKey key) {
         try {
@@ -173,6 +184,10 @@ abstract class UdpSocket<T extends Packet> implements Socket<T> {
             }
         } catch (IOException e) {
             log.warn("Error receiving bytes over channel", e);
+        }
+
+        if (!out.isEmpty()) {
+            key.interestOps(SelectionKey.OP_READ | SelectionKey.OP_WRITE);
         }
     }
 

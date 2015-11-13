@@ -8,7 +8,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-class UdpPacketHandler implements PacketHandler<UdpPacket> {
+public class UdpPacketHandler implements PacketHandler<UdpPacket> {
     private final Map<SocketAddress, EndpointState> endpointStates = new HashMap<>();
 
     @Override

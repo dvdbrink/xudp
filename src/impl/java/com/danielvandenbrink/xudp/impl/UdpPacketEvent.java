@@ -5,7 +5,7 @@ import com.danielvandenbrink.xudp.PacketEvent;
 
 import java.net.SocketAddress;
 
-class UdpPacketEvent implements PacketEvent {
+public class UdpPacketEvent implements PacketEvent {
     private final Packet packet;
     private final SocketAddress from;
 
