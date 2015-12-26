@@ -12,7 +12,7 @@ import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
 import java.util.*;
 
-public abstract class UdpSocket<T extends Packet> implements Socket<T> {
+public abstract class UdpSocket<T extends Packet> implements Socket {
     enum SocketState {
         Uninitialized,
         Bound,
@@ -131,6 +131,44 @@ public abstract class UdpSocket<T extends Packet> implements Socket<T> {
                 }
 
                 keys.remove();
+            }
+        } catch (IOException e) {
+            throw new UdpSocketException(e);
+        }
+    }
+
+    @Override
+    public final void read() {
+        try {
+            selector.selectNow();
+
+            final Iterator<SelectionKey> keys = selector.selectedKeys().iterator();
+            while (keys.hasNext()) {
+                final SelectionKey key = keys.next();
+
+                if (key.isReadable()) {
+                    handleRead(key);
+                    keys.remove();
+                }
+            }
+        } catch (IOException e) {
+            throw new UdpSocketException(e);
+        }
+    }
+
+    @Override
+    public final void write() {
+        try {
+            selector.selectNow();
+
+            final Iterator<SelectionKey> keys = selector.selectedKeys().iterator();
+            while (keys.hasNext()) {
+                final SelectionKey key = keys.next();
+
+                if (key.isValid() && key.isWritable()) {
+                    handleWrite(key);
+                    keys.remove();
+                }
             }
         } catch (IOException e) {
             throw new UdpSocketException(e);

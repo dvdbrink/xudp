@@ -20,7 +20,9 @@ class ReliableOrderedPacketReceiver extends UdpPacketReceiver {
                 for (final UdpPacket nextOrderedPacket : nextOrderedPackets) {
                     packets.add(nextOrderedPacket);
                 }
-                connection().sequenceState().nextOrdered(packets.get(packets.size() - 1).sequence() + 1);
+                if (packets.size() > 0) {
+                    connection().sequenceState().nextOrdered(packets.get(packets.size() - 1).sequence() + 1);
+                }
             }
         }
         return packets;
