@@ -1,18 +1,8 @@
 apply plugin: "java"
 apply plugin: "maven-publish"
-apply plugin: "me.tatarka.retrolambda"
 
 group = "com.danielvandenbrink.xudp"
 version = "0.2.0"
-
-buildscript {
-    repositories {
-        mavenCentral()
-    }
-    dependencies {
-        classpath "me.tatarka:gradle-retrolambda:3.2.4"
-    }
-}
 
 repositories {
     mavenCentral()
