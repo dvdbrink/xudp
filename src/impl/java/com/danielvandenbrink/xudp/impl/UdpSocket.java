@@ -12,7 +12,7 @@ import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
 import java.util.*;
 
-public abstract class UdpSocket<T extends Packet> implements Socket {
+public class UdpSocket<T extends Packet> implements Socket {
     enum SocketState {
         Uninitialized,
         Bound,
@@ -26,7 +26,6 @@ public abstract class UdpSocket<T extends Packet> implements Socket {
     private final Logger log = LoggerFactory.getLogger(getClass());
     private final ByteBuffer byteBuffer = ByteBuffer.allocate(PACKET_SIZE);
     private final Queue<OutgoingPacket<T>> out = new ArrayDeque<>();
-    private final List<PacketEventHandler> packetHandlers = new ArrayList<>();
 
     private final PacketEncoder<T> encoder;
     private final PacketDecoder<T> decoder;
@@ -114,65 +113,13 @@ public abstract class UdpSocket<T extends Packet> implements Socket {
     }
 
     @Override
-    public final void update() {
-        try {
-            selector.selectNow();
-
-            final Iterator<SelectionKey> keys = selector.selectedKeys().iterator();
-            while (keys.hasNext()) {
-                final SelectionKey key = keys.next();
-
-                if (key.isReadable()) {
-                    handleRead(key);
-                }
-
-                if (key.isValid() && key.isWritable()) {
-                    handleWrite(key);
-                }
-
-                keys.remove();
-            }
-        } catch (IOException e) {
-            throw new UdpSocketException(e);
-        }
-    }
-
-    @Override
-    public final void read() {
-        try {
-            selector.selectNow();
-
-            final Iterator<SelectionKey> keys = selector.selectedKeys().iterator();
-            while (keys.hasNext()) {
-                final SelectionKey key = keys.next();
-
-                if (key.isReadable()) {
-                    handleRead(key);
-                    keys.remove();
-                }
-            }
-        } catch (IOException e) {
-            throw new UdpSocketException(e);
-        }
+    public final void read(PacketEventHandler h) {
+        select(true, false, h);
     }
 
     @Override
     public final void write() {
-        try {
-            selector.selectNow();
-
-            final Iterator<SelectionKey> keys = selector.selectedKeys().iterator();
-            while (keys.hasNext()) {
-                final SelectionKey key = keys.next();
-
-                if (key.isValid() && key.isWritable()) {
-                    handleWrite(key);
-                    keys.remove();
-                }
-            }
-        } catch (IOException e) {
-            throw new UdpSocketException(e);
-        }
+        select(false, true, null);
     }
 
     @Override
@@ -193,32 +140,51 @@ public abstract class UdpSocket<T extends Packet> implements Socket {
         }
     }
 
-    public void handlePacketEvent(PacketEvent packetEvent) {
-        for (final PacketEventHandler handler : packetHandlers) {
-            handler.handle(packetEvent);
+    private void select(boolean read, boolean write, PacketEventHandler h) {
+        try {
+            selector.selectNow();
+
+            final Iterator<SelectionKey> keys = selector.selectedKeys().iterator();
+            while (keys.hasNext()) {
+                final SelectionKey key = keys.next();
+
+                if (read && key.isReadable()) {
+                    handleRead(key, h);
+                    keys.remove();
+                }
+
+                if (write && key.isValid() && key.isWritable()) {
+                    handleWrite(key);
+                    keys.remove();
+                }
+            }
+        } catch (IOException e) {
+            throw new UdpSocketException(e);
         }
     }
 
-    private void handleRead(SelectionKey key) {
+    private void handleRead(SelectionKey key, PacketEventHandler h) {
         try {
             final DatagramChannel channel = (DatagramChannel) key.channel();
 
-            byteBuffer.clear();
+            while (true) {
+                byteBuffer.clear();
 
-            SocketAddress from = null;
-            if (socketState == SocketState.Bound) {
-                from = channel.receive(byteBuffer);
-            } else if (socketState == SocketState.Connected && channel.isConnected()) {
-                channel.read(byteBuffer);
-                from = connectedFrom;
-            }
-            byteBuffer.flip();
+                SocketAddress from = null;
+                if (socketState == SocketState.Bound) {
+                    from = channel.receive(byteBuffer);
+                } else if (socketState == SocketState.Connected && channel.isConnected()) {
+                    from = connectedFrom;
+                    channel.read(byteBuffer);
+                }
+                byteBuffer.flip();
 
-            if (from == null) {
-                log.warn("Datagram channel is in non-blocking mode or no datagram was immediately available");
-            } else {
-                log.trace("Read {} bytes from {}", byteBuffer.limit(), from);
-                handleReadByteBuffer(from);
+                if (from == null || byteBuffer.limit() == 0) {
+                    break;
+                } else {
+                    log.trace("Read {} bytes from {}", byteBuffer.limit(), from);
+                    handleReadByteBuffer(from, h);
+                }
             }
         } catch (IOException e) {
             log.warn("Error receiving bytes over channel", e);
@@ -229,12 +195,12 @@ public abstract class UdpSocket<T extends Packet> implements Socket {
         }
     }
 
-    private void handleReadByteBuffer(SocketAddress from) {
+    private void handleReadByteBuffer(SocketAddress from, PacketEventHandler h) {
         try {
             final T packet = decoder.decode(byteBuffer);
             final List<T> readablePackets = handler.read(packet, from);
             for (final T readablePacket : readablePackets) {
-                handlePacketEvent(packetEventFactory.create(readablePacket, from));
+                h.handle(packetEventFactory.create(readablePacket, from));
             }
         } catch (UdpPacketException e) {
             log.error(String.format("Received corrupt packet from %s", from), e);

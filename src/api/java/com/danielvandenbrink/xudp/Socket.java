@@ -8,8 +8,7 @@ public interface Socket {
     void connect(SocketAddress address);
     void send(Protocol protocol, byte[] data);
     void send(Protocol protocol, byte[] data, SocketAddress to);
-    void update();
-    void read();
+    void read(PacketEventHandler handler);
     void write();
     void close();
 }

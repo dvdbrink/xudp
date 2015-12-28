@@ -1,7 +1,6 @@
 package com.danielvandenbrink.xudp.impl;
 
 import com.danielvandenbrink.xudp.PacketEncoder;
-import com.danielvandenbrink.xudp.Protocol;
 
 import java.nio.ByteBuffer;
 
