@@ -1,6 +1,8 @@
 package com.danielvandenbrink.xudp.impl;
 
-class UdpSocketException extends RuntimeException {
+import com.danielvandenbrink.xudp.SocketException;
+
+class UdpSocketException extends SocketException {
     public UdpSocketException(String message) {
         super(message);
     }

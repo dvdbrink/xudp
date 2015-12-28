@@ -1,8 +1,18 @@
 apply plugin: "java"
 apply plugin: "maven-publish"
+apply plugin: "me.tatarka.retrolambda"
 
 group = "com.danielvandenbrink.xudp"
-version = "0.1.2"
+version = "0.2.0"
+
+buildscript {
+    repositories {
+        mavenCentral()
+    }
+    dependencies {
+        classpath "me.tatarka:gradle-retrolambda:3.2.4"
+    }
+}
 
 repositories {
     mavenCentral()
@@ -23,6 +33,8 @@ task implJar(type: Jar) {
 
 dependencies {
     compile group: "org.slf4j", name: "slf4j-api", version: "1.7.13"
+
+    apiCompile group: "org.slf4j", name: "slf4j-api", version: "1.7.13"
 
     implCompile group: "org.slf4j", name: "slf4j-api", version: "1.7.13"
     implCompile sourceSets.api.output
