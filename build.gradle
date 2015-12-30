@@ -2,7 +2,12 @@ apply plugin: "java"
 apply plugin: "maven-publish"
 
 group = "com.danielvandenbrink.xudp"
-version = "0.2.0"
+version = "0.3.0"
+
+ext {
+    slf4jVersion = "1.7.13"
+    juniVersion = "4.12"
+}
 
 repositories {
     mavenCentral()
@@ -22,14 +27,14 @@ task implJar(type: Jar) {
 }
 
 dependencies {
-    compile group: "org.slf4j", name: "slf4j-api", version: "1.7.13"
+    compile group: "org.slf4j", name: "slf4j-api", version: "$slf4jVersion"
 
-    apiCompile group: "org.slf4j", name: "slf4j-api", version: "1.7.13"
+    apiCompile group: "org.slf4j", name: "slf4j-api", version: "$slf4jVersion"
 
-    implCompile group: "org.slf4j", name: "slf4j-api", version: "1.7.13"
+    implCompile group: "org.slf4j", name: "slf4j-api", version: "$slf4jVersion"
     implCompile sourceSets.api.output
 
-    testCompile group: "junit", name: "junit", version: "4.12"
+    testCompile group: "junit", name: "junit", version: "$juniVersion"
     testCompile sourceSets.api.output
     testCompile sourceSets.impl.output
 

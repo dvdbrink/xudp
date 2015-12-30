@@ -3,7 +3,7 @@ package com.danielvandenbrink.xudp.impl;
 import com.danielvandenbrink.xudp.Packet;
 import com.danielvandenbrink.xudp.Protocol;
 
-public class UdpPacket implements Packet, Comparable<UdpPacket> {
+class UdpPacket implements Packet, Comparable<UdpPacket> {
     private Protocol protocol;
     private int ack;
     private int ackBitField;

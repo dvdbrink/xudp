@@ -1,5 +1,5 @@
 package com.danielvandenbrink.xudp;
 
-public interface MessageHandler {
+public interface MessageEvent {
     void handle(Message event);
 }

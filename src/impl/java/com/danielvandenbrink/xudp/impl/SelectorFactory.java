@@ -6,7 +6,7 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.nio.channels.Selector;
 
-public class SelectorFactory {
+class SelectorFactory {
     private final Logger log = LoggerFactory.getLogger(getClass());
 
     public Selector create() {

@@ -5,7 +5,7 @@ import com.danielvandenbrink.xudp.Protocol;
 
 import java.nio.ByteBuffer;
 
-public class UdpPacketDecoder implements PacketDecoder<UdpPacket> {
+class UdpPacketDecoder implements PacketDecoder<UdpPacket> {
     public static final int PROTOCOL_SIZE = 4;
     public static final int MESSAGE_LENGTH_SIZE = 4;
     public static final int SEQUENCE_NUMBER_SIZE = 4;

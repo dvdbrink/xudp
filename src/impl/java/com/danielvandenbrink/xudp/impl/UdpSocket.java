@@ -11,7 +11,7 @@ import java.nio.channels.DatagramChannel;
 import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
 
-public class UdpSocket implements Socket {
+class UdpSocket implements Socket {
     public static final boolean CONFIGURE_BLOCKING = false;
     public static final boolean REUSE_ADDRESS = true;
 
@@ -54,7 +54,7 @@ public class UdpSocket implements Socket {
             channel.bind(address);
             socketState = UdpSocketState.Bound;
         } catch (IOException e) {
-            throw new UdpSocketException("Failed to connect on socket", e);
+            throw new UdpSocketException("Failed to bind socket", e);
         }
     }
 
@@ -70,7 +70,7 @@ public class UdpSocket implements Socket {
             socketState = UdpSocketState.Connected;
             connectedFrom = address;
         } catch (IOException e) {
-            throw new UdpSocketException("Failed to connect on socket", e);
+            throw new UdpSocketException("Failed to connect socket", e);
         }
     }
 
@@ -95,10 +95,6 @@ public class UdpSocket implements Socket {
 
     @Override
     public final SocketAddress read(ByteBuffer byteBuffer) {
-        if (socketState == UdpSocketState.Uninitialized) {
-            throw new UdpSocketException("Socket has not been initialized");
-        }
-
         SocketAddress from = null;
         try {
             if (socketState == UdpSocketState.Bound) {
@@ -111,7 +107,7 @@ public class UdpSocket implements Socket {
                 log.trace("Read {} bytes from {}", byteBuffer.limit(), from);
             }
         } catch (IOException e) {
-            log.warn("Error receiving bytes over channel", e);
+            throw new UdpSocketException("Error receiving bytes over channel", e);
         }
         return from;
     }
@@ -127,7 +123,7 @@ public class UdpSocket implements Socket {
             }
             log.trace("Wrote {} bytes to {}", bytes, to);
         } catch (IOException e) {
-            log.warn("Error sending bytes over channel", e);
+            throw new UdpSocketException("Error sending bytes over channel", e);
         }
     }
 
@@ -145,7 +141,7 @@ public class UdpSocket implements Socket {
                 selector.close();
             }
         } catch (IOException e) {
-            throw new UdpSocketException("Unable to gracefully close the socket", e);
+            throw new UdpSocketException("Failed to gracefully close socket", e);
         }
     }
 }

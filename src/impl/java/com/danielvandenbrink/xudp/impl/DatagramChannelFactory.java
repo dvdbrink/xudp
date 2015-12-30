@@ -6,7 +6,7 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.nio.channels.DatagramChannel;
 
-public class DatagramChannelFactory {
+class DatagramChannelFactory {
     private final Logger log = LoggerFactory.getLogger(getClass());
 
     public DatagramChannel create() {

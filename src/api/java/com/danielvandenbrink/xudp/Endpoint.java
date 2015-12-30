@@ -7,15 +7,17 @@ import java.net.SocketAddress;
 import java.nio.ByteBuffer;
 import java.nio.channels.SelectionKey;
 import java.util.ArrayDeque;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Queue;
 
 public abstract class Endpoint<T extends Packet> {
-    public static final int PACKET_SIZE = 2048;
+    public static final int MAX_PACKET_SIZE = 2048;
 
     private final Logger log = LoggerFactory.getLogger(getClass());
-    private final ByteBuffer byteBuffer = ByteBuffer.allocate(PACKET_SIZE);
+    private final ByteBuffer buffer = ByteBuffer.allocate(MAX_PACKET_SIZE);
     private final Queue<Message<T>> out = new ArrayDeque<>();
+    private final List<MessageEvent> messageHandlers = new ArrayList<>();
 
     private final Socket socket;
     private final PacketHandler<T> packetHandler;
@@ -32,21 +34,21 @@ public abstract class Endpoint<T extends Packet> {
         this.packetFactory = packetFactory;
     }
 
-    public Socket socket() {
-        return socket;
+    public void onMessage(MessageEvent messageEvent) {
+        messageHandlers.add(messageEvent);
     }
 
-    public void read(MessageHandler messageHandler) {
+    public void read() {
         if (socket.select(SelectionKey.OP_READ)) {
             while (true) {
-                byteBuffer.clear();
-                SocketAddress from = socket.read(byteBuffer);
-                byteBuffer.flip();
+                buffer.clear();
+                SocketAddress from = socket.read(buffer);
+                buffer.flip();
 
-                if (from == null || byteBuffer.limit() == 0) {
+                if (from == null || buffer.limit() == 0) {
                     break;
                 } else {
-                    handleReadByteBuffer(messageHandler, from);
+                    handleReadByteBuffer(from);
                 }
             }
 
@@ -60,7 +62,7 @@ public abstract class Endpoint<T extends Packet> {
         if (socket.select(SelectionKey.OP_WRITE)) {
             while (!out.isEmpty()) {
                 final Message<T> msg = out.poll();
-                handleWriteMessageObject(msg);
+                handleWriteMessage(msg);
             }
 
             socket.interestOps(SelectionKey.OP_READ);
@@ -69,6 +71,10 @@ public abstract class Endpoint<T extends Packet> {
 
     public void close() {
         socket.close();
+    }
+
+    protected Socket socket() {
+        return socket;
     }
 
     protected void enqueue(Protocol protocol, byte[] data, SocketAddress to) {
@@ -81,15 +87,21 @@ public abstract class Endpoint<T extends Packet> {
         }
     }
 
-    private void handleReadByteBuffer(MessageHandler h, SocketAddress from) {
-        final T packet = packetDecoder.decode(byteBuffer);
+    private void handleReadByteBuffer(SocketAddress from) {
+        final T packet = packetDecoder.decode(buffer);
         final List<T> readablePackets = packetHandler.read(packet, from);
         for (final T readablePacket : readablePackets) {
-            h.handle(new Message<>(readablePacket, from));
+            handleReadMessage(new Message<>(readablePacket, from));
         }
     }
 
-    private void handleWriteMessageObject(Message<T> msg) {
+    private void handleReadMessage(Message<T> msg) {
+        for (final MessageEvent messageEvent : messageHandlers) {
+            messageEvent.handle(msg);
+        }
+    }
+
+    private void handleWriteMessage(Message<T> msg) {
         final List<T> writablePackets = packetHandler.write(msg.packet(), msg.from());
         for (final T writablePacket : writablePackets) {
             handleWritePacket(writablePacket, msg.from());
@@ -97,12 +109,12 @@ public abstract class Endpoint<T extends Packet> {
     }
 
     private void handleWritePacket(T writablePacket, SocketAddress to) {
-        byteBuffer.clear();
-        packetEncoder.encode(writablePacket, byteBuffer);
-        byteBuffer.flip();
+        buffer.clear();
+        packetEncoder.encode(writablePacket, buffer);
+        buffer.flip();
 
-        if (byteBuffer.remaining() > 0) {
-            socket.write(byteBuffer, to);
+        if (buffer.remaining() > 0) {
+            socket.write(buffer, to);
         } else {
             log.warn("Not sending empty packet to {}", to);
         }
